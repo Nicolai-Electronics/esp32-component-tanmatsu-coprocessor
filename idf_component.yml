@@ -1,0 +1,10 @@
+dependencies:
+  cmake_utilities: 0.*
+  idf: '>=5.3'
+description: Tanmatsu coprocessor driver
+license: MIT
+repository: git://github.com/Nicolai-Electronics/esp32-component-tanmatsu-coprocessor.git
+issues: https://github.com/Nicolai-Electronics/esp32-component-tanmatsu-coprocessor/issues
+url: https://github.com/Nicolai-Electronics/esp32-component-tanmatsu-coprocessor
+targets:
+- esp32p4
