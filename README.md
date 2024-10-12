@@ -10,7 +10,7 @@ Packages from this repository are uploaded to [Espressif's component service](ht
 You can add them to your project via `idf.py add-dependancy`, e.g.
 
 ```
-    idf.py add-dependency "nicolaielectronics/tanmatsu-coprocessor"
+    idf.py add-dependency "nicolaielectronics/tanmatsu_coprocessor"
 ```
 
 Alternatively, you can create `idf_component.yml`. More is in [Espressif's documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html).
