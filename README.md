@@ -240,6 +240,7 @@ void coprocessor_keyboard_callback(tanmatsu_coprocessor_handle_t handle, tanmats
     }
     printf("\r\n");
 }
+
 void coprocessor_input_callback(tanmatsu_coprocessor_handle_t handle, tanmatsu_coprocessor_inputs_t* prev_inputs,
                                 tanmatsu_coprocessor_inputs_t* inputs) {
     if (inputs->sd_card_detect != prev_inputs->sd_card_detect) {
@@ -254,6 +255,12 @@ void coprocessor_input_callback(tanmatsu_coprocessor_handle_t handle, tanmatsu_c
         ESP_LOGW(TAG, "Power button %s", inputs->power_button ? "pressed" : "released");
     }
 }
+```
+
+```
+SemaphoreHandle_t i2c_concurrency_semaphore = NULL;
+i2c_concurrency_semaphore = xSemaphoreCreateBinary();
+xSemaphoreGive(i2c_concurrency_semaphore);
 
 i2c_master_bus_config_t i2c_master_config = {
     .clk_source = I2C_CLK_SRC_DEFAULT,
@@ -272,7 +279,7 @@ tanmatsu_coprocessor_config_t coprocessor_config = {
     .int_io_num = 6,
     .i2c_bus = i2c_bus_handle,
     .i2c_address = 0x5F,
-    .concurrency_semaphore = NULL,
+    .concurrency_semaphore = i2c_concurrency_semaphore,
     .on_keyboard_change = coprocessor_keyboard_callback,
     .on_input_change = coprocessor_input_callback,
 };
