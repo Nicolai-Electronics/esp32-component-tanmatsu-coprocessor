@@ -13,27 +13,38 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/projdefs.h"
 #include "freertos/queue.h"
 
 // Registers
-#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0         0   // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_1         1   // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0           2   // 9 bytes
-#define TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT_0  11  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT_1  12  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT_0 13  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT_1 14  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_INPUT                15
-#define TANMATSU_COPROCESSOR_I2C_REG_OUTPUT               16
-#define TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL        17
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0          18  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_1          19
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_2          20
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_3          21   // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0             22   // 84 bytes
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_BATTERY_CONTROL 106  // NOT IMPLEMENTED
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_BATTERY_STATUS  107  // NOT IMPLEMENTED
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_OTG_CONTROL     108  // NOT IMPLEMENTED
+#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0       0  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_1       1  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0         2  // 9 bytes
+#define TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT  11
+#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT 12
+#define TANMATSU_COPROCESSOR_I2C_REG_INTERRUPT          13
+#define TANMATSU_COPROCESSOR_I2C_REG_RESERVED_0         14
+#define TANMATSU_COPROCESSOR_I2C_REG_INPUT              15
+#define TANMATSU_COPROCESSOR_I2C_REG_OUTPUT             16
+#define TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL      17
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0        18  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_1        19
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_2        20
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_3        21  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0           22  // 84 bytes
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_COMM_FAULT    106
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_FAULT         107
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL   108
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_0    109  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_1    110  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_0    111  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_1    112  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_0      113  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_1      114  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_0    115  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_1    116  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_0   117  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_1   118  // MSB
 
 typedef struct tanmatsu_coprocessor {
     i2c_master_dev_handle_t dev_handle;           /// I2C device handle
@@ -51,25 +62,30 @@ static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
     tanmatsu_coprocessor_keys_t keys = {0};
     tanmatsu_coprocessor_inputs_t prev_inputs = {0};
     tanmatsu_coprocessor_inputs_t inputs = {0};
+    tanmatsu_coprocessor_pmic_faults_t prev_faults = {0};
+    tanmatsu_coprocessor_pmic_faults_t faults = {0};
 
     while (true) {
         // Wait for interrupt
-        xSemaphoreTake(handle->interrupt_semaphore, portMAX_DELAY);
+        xSemaphoreTake(handle->interrupt_semaphore, pdMS_TO_TICKS(1000));
 
-        // Claim I2C bus
-        if (handle->configuration.concurrency_semaphore != NULL) {
-            xSemaphoreTake(handle->configuration.concurrency_semaphore, portMAX_DELAY);
+        // Read interrupt reason
+        bool keyboard, input, pmic;
+        ESP_ERROR_CHECK(tanmatsu_coprocessor_get_interrupt(handle, &keyboard, &input, &pmic));
+
+        if (keyboard) {
+            // Read keyboard state
+            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_keyboard_keys(handle, &keys));
         }
 
-        // Read keyboard state
-        ESP_ERROR_CHECK(tanmatsu_coprocessor_get_keyboard_keys(handle, &keys));
+        if (input) {
+            // Read input state
+            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_inputs(handle, &inputs));
+        }
 
-        // Read input state
-        ESP_ERROR_CHECK(tanmatsu_coprocessor_get_inputs(handle, &inputs));
-
-        // Release I2C bus
-        if (handle->configuration.concurrency_semaphore != NULL) {
-            xSemaphoreGive(handle->configuration.concurrency_semaphore);
+        if (pmic) {
+            // Read PMIC state
+            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_pmic_faults(handle, &faults));
         }
 
         if (memcmp(&prev_keys, &keys, sizeof(tanmatsu_coprocessor_keys_t))) {
@@ -84,6 +100,11 @@ static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
             }
         }
 
+        if (memcmp(&prev_faults, &faults, sizeof(tanmatsu_coprocessor_pmic_faults_t))) {
+            // tbd
+            printf("PMIC faults changed\r\n");
+        }
+
         memcpy(&prev_keys, &keys, sizeof(tanmatsu_coprocessor_keys_t));
         memcpy(&prev_inputs, &inputs, sizeof(tanmatsu_coprocessor_inputs_t));
     }
@@ -93,6 +114,40 @@ IRAM_ATTR static void tanmatsu_coprocessor_interrupt_handler(void* pvParameters)
     tanmatsu_coprocessor_handle_t handle = (tanmatsu_coprocessor_handle_t)pvParameters;
     xSemaphoreGiveFromISR(handle->interrupt_semaphore, NULL);
     portYIELD_FROM_ISR();
+}
+
+// Wrapping functions for making ESP-IDF I2C driver thread-safe
+
+static void claim_i2c_bus(tanmatsu_coprocessor_handle_t handle) {
+    // Claim I2C bus
+    if (handle->configuration.concurrency_semaphore != NULL) {
+        xSemaphoreTake(handle->configuration.concurrency_semaphore, portMAX_DELAY);
+    }
+}
+
+static void release_i2c_bus(tanmatsu_coprocessor_handle_t handle) {
+    // Release I2C bus
+    if (handle->configuration.concurrency_semaphore != NULL) {
+        xSemaphoreGive(handle->configuration.concurrency_semaphore);
+    }
+}
+
+static esp_err_t ts_i2c_master_transmit_receive(tanmatsu_coprocessor_handle_t handle, i2c_master_dev_handle_t i2c_dev,
+                                                const uint8_t* write_buffer, size_t write_size, uint8_t* read_buffer,
+                                                size_t read_size, int xfer_timeout_ms) {
+    claim_i2c_bus(handle);
+    esp_err_t res =
+        i2c_master_transmit_receive(i2c_dev, write_buffer, write_size, read_buffer, read_size, xfer_timeout_ms);
+    release_i2c_bus(handle);
+    return res;
+}
+
+static esp_err_t ts_i2c_master_transmit(tanmatsu_coprocessor_handle_t handle, i2c_master_dev_handle_t i2c_dev,
+                                        const uint8_t* write_buffer, size_t write_size, int xfer_timeout_ms) {
+    claim_i2c_bus(handle);
+    esp_err_t res = i2c_master_transmit(i2c_dev, write_buffer, write_size, xfer_timeout_ms);
+    release_i2c_bus(handle);
+    return res;
 }
 
 esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* configuration,
@@ -121,7 +176,7 @@ esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* c
     xSemaphoreGive(handle->interrupt_semaphore);
 
     if (configuration->int_io_num >= 0) {
-        assert(xTaskCreate(tanmatsu_coprocessor_interrupt_thread_entry, "Tanmatsu coprocessor interrupt task", 2048,
+        assert(xTaskCreate(tanmatsu_coprocessor_interrupt_thread_entry, "Tanmatsu coprocessor interrupt task", 4096,
                            (void*)handle, 0, &handle->interrupt_handler_thread) == pdTRUE);
 
         gpio_config_t int_pin_cfg = {
@@ -143,94 +198,108 @@ esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* c
 esp_err_t tanmatsu_coprocessor_get_firmware_version(tanmatsu_coprocessor_handle_t handle,
                                                     uint16_t* out_firmware_version) {
     uint8_t buffer[2];
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0}, 1,
-                                    buffer, sizeof(buffer), TANMATSU_COPROCESSOR_TIMEOUT_MS),
-        TAG, "Communication fault");
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0}, 1,
+                                                       buffer, sizeof(buffer), TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
     *out_firmware_version = buffer[0] + (buffer[1] << 8);
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_get_keyboard_keys(tanmatsu_coprocessor_handle_t handle,
                                                  tanmatsu_coprocessor_keys_t* out_keys) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(
-                            handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0}, 1,
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(
+                            handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0}, 1,
                             (uint8_t*)out_keys, sizeof(tanmatsu_coprocessor_keys_t), TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_get_display_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t* out_brightness) {
-    uint8_t buffer[2];
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT_0},
-                                    1, buffer, sizeof(buffer), TANMATSU_COPROCESSOR_TIMEOUT_MS),
-        TAG, "Communication fault");
-    *out_brightness = buffer[0] + (buffer[1] << 8);
-    return ESP_OK;
-}
-
-esp_err_t tanmatsu_coprocessor_set_display_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t brightness) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle,
-                                            (uint8_t[]){
-                                                TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT_0,
-                                                brightness & 0xFF,
-                                                (brightness >> 8) & 0xFF,
-                                            },
-                                            3, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+esp_err_t tanmatsu_coprocessor_get_display_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t* out_brightness) {
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT}, 1,
+                                                       out_brightness, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_get_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t* out_brightness) {
-    uint8_t buffer[2];
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT_0},
-                                    1, buffer, sizeof(buffer), TANMATSU_COPROCESSOR_TIMEOUT_MS),
-        TAG, "Communication fault");
-    *out_brightness = buffer[0] + (buffer[1] << 8);
+esp_err_t tanmatsu_coprocessor_set_display_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t brightness) {
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT,
+                                                   brightness,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_set_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t brightness) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle,
-                                            (uint8_t[]){
-                                                TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT_0,
-                                                brightness & 0xFF,
-                                                (brightness >> 8) & 0xFF,
-                                            },
-                                            3, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+esp_err_t tanmatsu_coprocessor_get_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t* out_brightness) {
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT}, 1,
+                                                       out_brightness, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_set_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t brightness) {
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT,
+                                                   brightness,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_interrupt(tanmatsu_coprocessor_handle_t handle, bool* out_keyboard, bool* out_input,
+                                             bool* out_pmic) {
+    uint8_t value;
+    ESP_RETURN_ON_ERROR(
+        ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_INTERRUPT},
+                                       1, &value, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+        TAG, "Communication fault");
+    if (out_keyboard) {
+        *out_keyboard = (value >> 0) & 1;
+    }
+    if (out_input) {
+        *out_input = (value >> 1) & 1;
+    }
+    if (out_pmic) {
+        *out_pmic = (value >> 2) & 1;
+    }
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_get_inputs(tanmatsu_coprocessor_handle_t handle,
                                           tanmatsu_coprocessor_inputs_t* out_inputs) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_INPUT},
-                                                    1, (uint8_t*)out_inputs, sizeof(tanmatsu_coprocessor_inputs_t),
-                                                    TANMATSU_COPROCESSOR_TIMEOUT_MS),
-                        TAG, "Communication fault");
+    ESP_RETURN_ON_ERROR(
+        ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_INPUT}, 1,
+                                       (uint8_t*)out_inputs, sizeof(tanmatsu_coprocessor_inputs_t),
+                                       TANMATSU_COPROCESSOR_TIMEOUT_MS),
+        TAG, "Communication fault");
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_get_outputs(tanmatsu_coprocessor_handle_t handle,
                                            tanmatsu_coprocessor_outputs_t* out_outputs) {
     ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_OUTPUT}, 1,
-                                    (uint8_t*)out_outputs, sizeof(tanmatsu_coprocessor_outputs_t),
-                                    TANMATSU_COPROCESSOR_TIMEOUT_MS),
+        ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_OUTPUT}, 1,
+                                       (uint8_t*)out_outputs, sizeof(tanmatsu_coprocessor_outputs_t),
+                                       TANMATSU_COPROCESSOR_TIMEOUT_MS),
         TAG, "Communication fault");
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_set_outputs(tanmatsu_coprocessor_handle_t handle,
                                            tanmatsu_coprocessor_outputs_t* outputs) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle,
-                                            (uint8_t[]){
-                                                TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT_0,
-                                                outputs->raw,
-                                            },
-                                            2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_OUTPUT,
+                                                   outputs->raw,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
     return ESP_OK;
 }
@@ -264,21 +333,21 @@ esp_err_t tanmatsu_coprocessor_set_camera_gpio0(tanmatsu_coprocessor_handle_t ha
 esp_err_t tanmatsu_coprocessor_get_radio_state(tanmatsu_coprocessor_handle_t handle,
                                                tanmatsu_coprocessor_radio_state_t* out_state) {
     ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL}, 1,
-                                    (uint8_t*)out_state, sizeof(tanmatsu_coprocessor_radio_state_t),
-                                    TANMATSU_COPROCESSOR_TIMEOUT_MS),
+        ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL}, 1, (uint8_t*)out_state,
+                                       sizeof(tanmatsu_coprocessor_radio_state_t), TANMATSU_COPROCESSOR_TIMEOUT_MS),
         TAG, "Communication fault");
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_set_radio_state(tanmatsu_coprocessor_handle_t handle,
                                                tanmatsu_coprocessor_radio_state_t state) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle,
-                                            (uint8_t[]){
-                                                TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL,
-                                                (uint8_t)(state),
-                                            },
-                                            2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL,
+                                                   (uint8_t)(state),
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
     return ESP_OK;
 }
@@ -296,23 +365,23 @@ esp_err_t tanmatsu_coprocessor_radio_enable_bootloader(tanmatsu_coprocessor_hand
 }
 
 esp_err_t tanmatsu_coprocessor_get_real_time(tanmatsu_coprocessor_handle_t handle, uint32_t* out_value) {
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0}, 1,
-                                    (uint8_t*)out_value, 4, TANMATSU_COPROCESSOR_TIMEOUT_MS),
-        TAG, "Communication fault");
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0}, 1,
+                                                       (uint8_t*)out_value, 4, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
     return ESP_OK;
 }
 
 esp_err_t tanmatsu_coprocessor_set_real_time(tanmatsu_coprocessor_handle_t handle, uint32_t value) {
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle,
-                                            (uint8_t[]){
-                                                TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0,
-                                                (uint8_t)((value >> 0) & 0xFF),
-                                                (uint8_t)((value >> 8) & 0xFF),
-                                                (uint8_t)((value >> 16) & 0xFF),
-                                                (uint8_t)((value >> 24) & 0xFF),
-                                            },
-                                            5, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0,
+                                                   (uint8_t)((value >> 0) & 0xFF),
+                                                   (uint8_t)((value >> 8) & 0xFF),
+                                                   (uint8_t)((value >> 16) & 0xFF),
+                                                   (uint8_t)((value >> 24) & 0xFF),
+                                               },
+                                               5, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
     return ESP_OK;
 }
@@ -323,10 +392,10 @@ esp_err_t tanmatsu_coprocessor_get_backup_registers(tanmatsu_coprocessor_handle_
     ESP_RETURN_ON_FALSE(length >= TANMATSU_COPROCESSOR_BACKUP_NUM_REGS - reg, ESP_ERR_INVALID_ARG, TAG,
                         "invalid argument");
     ESP_RETURN_ON_FALSE(length < 1, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0 + reg}, 1,
-                                    out_value, length, TANMATSU_COPROCESSOR_TIMEOUT_MS),
-        TAG, "Communication fault");
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0 + reg}, 1,
+                                                       out_value, length, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
     return ESP_OK;
 }
 
@@ -338,7 +407,152 @@ esp_err_t tanmatsu_coprocessor_set_backup_registers(tanmatsu_coprocessor_handle_
     ESP_RETURN_ON_FALSE(length < 1, ESP_ERR_INVALID_ARG, TAG, "invalid argument");
     uint8_t buffer[TANMATSU_COPROCESSOR_BACKUP_NUM_REGS] = {TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0 + reg};
     memcpy(&buffer[1], value, length);
-    ESP_RETURN_ON_ERROR(i2c_master_transmit(handle->dev_handle, buffer, length + 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+    ESP_RETURN_ON_ERROR(
+        ts_i2c_master_transmit(handle, handle->dev_handle, buffer, length + 1, TANMATSU_COPROCESSOR_TIMEOUT_MS), TAG,
+        "Communication fault");
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_communication_fault(tanmatsu_coprocessor_handle_t handle, bool* out_last,
+                                                            bool* out_latch) {
+    uint8_t value;
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_COMM_FAULT}, 1,
+                                                       &value, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
+
+    if (out_last) {
+        *out_last = value & 1;
+    }
+
+    if (out_latch) {
+        *out_latch = (value >> 1) & 1;
+    }
+
+    return ESP_OK;
+}
+
+typedef struct {
+    union {
+        uint8_t raw;
+        struct {
+            uint8_t ntc_fault : 3;       // Temperature sensor fault
+            uint8_t bat_fault : 1;       // Battery over voltage fault
+            uint8_t chrg_fault : 2;      // Charge fault
+            uint8_t boost_fault : 1;     // Boost mode fault
+            uint8_t watchdog_fault : 1;  // Watchdog fault
+        };
+    };
+} bq25895_reg0C_t;
+
+esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t handle,
+                                               tanmatsu_coprocessor_pmic_faults_t* out_faults) {
+    bq25895_reg0C_t value;
+    ESP_RETURN_ON_ERROR(
+        ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_FAULT},
+                                       1, &value.raw, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+        TAG, "Communication fault");
+
+    if (out_faults) {
+        out_faults->watchdog = value.watchdog_fault;
+        out_faults->boost = value.boost_fault;
+        out_faults->chrg_input = value.chrg_fault == 1;
+        out_faults->chrg_thermal = value.chrg_fault == 2;
+        out_faults->chrg_safety = value.chrg_fault == 3;
+        out_faults->batt_ovp = value.bat_fault;
+        out_faults->ntc_cold = (value.ntc_fault & 3) == 1;
+        out_faults->ntc_hot = (value.ntc_fault & 3) == 2;
+        out_faults->ntc_boost = (value.ntc_fault >> 2) & 1;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_set_pmic_adc_control(tanmatsu_coprocessor_handle_t handle, bool trigger,
+                                                    bool continuous) {
+    uint8_t value = 0;
+    if (trigger) {
+        value |= (1 << 0);
+    }
+    if (continuous) {
+        value |= (1 << 1);
+    }
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL,
+                                                   value,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_vbat(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbat) {
+    uint8_t value[2];
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_0}, 1,
+                                                       value, 2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_vbat) {
+        *out_vbat = value[0] | (value[1] << 8);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_vsys(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vsys) {
+    uint8_t value[2];
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_0}, 1,
+                                                       value, 2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_vsys) {
+        *out_vsys = value[0] | (value[1] << 8);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_ts(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ts) {
+    uint8_t value[2];
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_0}, 1,
+                                                       value, 2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_ts) {
+        *out_ts = value[0] | (value[1] << 8);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_vbus(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbus) {
+    uint8_t value[2];
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_0}, 1,
+                                                       value, 2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_vbus) {
+        *out_vbus = value[0] | (value[1] << 8);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_ichgr(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ichgr) {
+    uint8_t value[2];
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_0}, 1,
+                                                       value, 2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_ichgr) {
+        *out_ichgr = value[0] | (value[1] << 8);
+    }
+
     return ESP_OK;
 }

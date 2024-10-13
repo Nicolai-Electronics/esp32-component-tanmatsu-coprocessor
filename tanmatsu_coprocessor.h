@@ -155,6 +155,18 @@ typedef enum {
     tanmatsu_coprocessor_radio_state_enabled_application = 0x03,
 } tanmatsu_coprocessor_radio_state_t;
 
+typedef struct {
+    bool watchdog;
+    bool boost;
+    bool chrg_input;
+    bool chrg_thermal;
+    bool chrg_safety;
+    bool batt_ovp;
+    bool ntc_cold;
+    bool ntc_hot;
+    bool ntc_boost;
+} tanmatsu_coprocessor_pmic_faults_t;
+
 // Functions
 
 esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* configuration,
@@ -166,11 +178,14 @@ esp_err_t tanmatsu_coprocessor_get_firmware_version(tanmatsu_coprocessor_handle_
 esp_err_t tanmatsu_coprocessor_get_keyboard_keys(tanmatsu_coprocessor_handle_t handle,
                                                  tanmatsu_coprocessor_keys_t* out_keys);
 
-esp_err_t tanmatsu_coprocessor_get_display_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t* out_brightness);
-esp_err_t tanmatsu_coprocessor_set_display_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t brightness);
+esp_err_t tanmatsu_coprocessor_get_display_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t* out_brightness);
+esp_err_t tanmatsu_coprocessor_set_display_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t brightness);
 
-esp_err_t tanmatsu_coprocessor_get_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t* out_brightness);
-esp_err_t tanmatsu_coprocessor_set_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint16_t brightness);
+esp_err_t tanmatsu_coprocessor_get_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t* out_brightness);
+esp_err_t tanmatsu_coprocessor_set_keyboard_backlight(tanmatsu_coprocessor_handle_t handle, uint8_t brightness);
+
+esp_err_t tanmatsu_coprocessor_get_interrupt(tanmatsu_coprocessor_handle_t handle, bool* out_keyboard, bool* out_input,
+                                             bool* out_pmic);
 
 esp_err_t tanmatsu_coprocessor_get_inputs(tanmatsu_coprocessor_handle_t handle,
                                           tanmatsu_coprocessor_inputs_t* out_inputs);
@@ -202,3 +217,15 @@ esp_err_t tanmatsu_coprocessor_get_backup_registers(tanmatsu_coprocessor_handle_
                                                     uint8_t* out_value, uint8_t length);
 esp_err_t tanmatsu_coprocessor_set_backup_registers(tanmatsu_coprocessor_handle_t handle, uint8_t reg,
                                                     const uint8_t* value, uint8_t length);
+
+esp_err_t tanmatsu_coprocessor_get_pmic_communication_fault(tanmatsu_coprocessor_handle_t handle, bool* out_last,
+                                                            bool* out_latch);
+esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t handle,
+                                               tanmatsu_coprocessor_pmic_faults_t* out_faults);
+esp_err_t tanmatsu_coprocessor_set_pmic_adc_control(tanmatsu_coprocessor_handle_t handle, bool trigger,
+                                                    bool continuous);
+esp_err_t tanmatsu_coprocessor_get_pmic_vbat(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbat);
+esp_err_t tanmatsu_coprocessor_get_pmic_vsys(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vsys);
+esp_err_t tanmatsu_coprocessor_get_pmic_ts(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ts);
+esp_err_t tanmatsu_coprocessor_get_pmic_vbus(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbus);
+esp_err_t tanmatsu_coprocessor_get_pmic_ichgr(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ichgr);
