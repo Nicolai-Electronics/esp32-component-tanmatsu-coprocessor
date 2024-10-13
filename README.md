@@ -258,6 +258,10 @@ void coprocessor_input_callback(tanmatsu_coprocessor_handle_t handle, tanmatsu_c
 ```
 
 ```
+gpio_install_isr_service(0);
+
+tanmatsu_coprocessor_handle_t coprocessor_handle = NULL;
+
 SemaphoreHandle_t i2c_concurrency_semaphore = NULL;
 i2c_concurrency_semaphore = xSemaphoreCreateBinary();
 xSemaphoreGive(i2c_concurrency_semaphore);
