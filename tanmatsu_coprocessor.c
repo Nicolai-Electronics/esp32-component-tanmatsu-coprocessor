@@ -1,8 +1,6 @@
-/*
- * SPDX-FileCopyrightText: 2024 Nicolai Electronics
- *
- * SPDX-License-Identifier: MIT
- */
+// Tanmatsu coprocessor interface component
+// SPDX-FileCopyrightText: 2024 Nicolai Electronics
+// SPDX-License-Identifier: MIT
 
 #include "tanmatsu_coprocessor.h"
 #include <stdbool.h>
@@ -17,34 +15,37 @@
 #include "freertos/queue.h"
 
 // Registers
-#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0       0  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_1       1  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0         2  // 9 bytes
-#define TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT  11
-#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT 12
-#define TANMATSU_COPROCESSOR_I2C_REG_INTERRUPT          13
-#define TANMATSU_COPROCESSOR_I2C_REG_RESERVED_0         14
-#define TANMATSU_COPROCESSOR_I2C_REG_INPUT              15
-#define TANMATSU_COPROCESSOR_I2C_REG_OUTPUT             16
-#define TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL      17
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0        18  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_1        19
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_2        20
-#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_3        21  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0           22  // 84 bytes
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_COMM_FAULT    106
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_FAULT         107
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL   108
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_0    109  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_1    110  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_0    111  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_1    112  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_0      113  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_1      114  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_0    115  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_1    116  // MSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_0   117  // LSB
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_1   118  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0          0  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_1          1  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0            2  // 9 bytes
+#define TANMATSU_COPROCESSOR_I2C_REG_DISPLAY_BACKLIGHT     11
+#define TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_BACKLIGHT    12
+#define TANMATSU_COPROCESSOR_I2C_REG_INTERRUPT             13
+#define TANMATSU_COPROCESSOR_I2C_REG_RESERVED_0            14
+#define TANMATSU_COPROCESSOR_I2C_REG_INPUT                 15
+#define TANMATSU_COPROCESSOR_I2C_REG_OUTPUT                16
+#define TANMATSU_COPROCESSOR_I2C_REG_RADIO_CONTROL         17
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_0           18  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_1           19
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_2           20
+#define TANMATSU_COPROCESSOR_I2C_REG_RTC_VALUE_3           21  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0              22  // 84 bytes
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_COMM_FAULT       106
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_FAULT            107
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL      108
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_0       109  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_1       110  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_0       111  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_1       112  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_0         113  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_TS_1         114  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_0       115  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBUS_1       116  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_0      117  // LSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_ICHGR_1      118  // MSB
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_CONTROL 119
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_STATUS  120
+#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_OTG_CONTROL      121
 
 typedef struct tanmatsu_coprocessor {
     i2c_master_dev_handle_t dev_handle;           /// I2C device handle
@@ -554,5 +555,84 @@ esp_err_t tanmatsu_coprocessor_get_pmic_ichgr(tanmatsu_coprocessor_handle_t hand
         *out_ichgr = value[0] | (value[1] << 8);
     }
 
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_set_pmic_charging_control(tanmatsu_coprocessor_handle_t handle, bool disable,
+                                                         uint8_t speed) {
+    uint8_t value = 0;
+    if (disable) {
+        value |= (1 << 0);
+    }
+    value |= ((speed & 3) << 1);
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_CONTROL,
+                                                   value,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_charging_control(tanmatsu_coprocessor_handle_t handle, bool* out_disable,
+                                                         uint8_t* out_speed) {
+    uint8_t value;
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_CONTROL},
+                                                       1, &value, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_disable) {
+        *out_disable = (value >> 0) & 1;
+    }
+
+    if (out_speed) {
+        *out_speed = (value >> 1) & 3;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_get_pmic_charging_status(tanmatsu_coprocessor_handle_t handle,
+                                                        bool* out_battery_attached, bool* out_usb_attached,
+                                                        bool* out_charging_disabled, uint8_t* out_charging_status) {
+    uint8_t value;
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_STATUS},
+                                                       1, &value, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+
+    if (out_battery_attached) {
+        *out_battery_attached = (value >> 0) & 1;
+    }
+
+    if (out_usb_attached) {
+        *out_usb_attached = (value >> 1) & 1;
+    }
+
+    if (out_charging_disabled) {
+        *out_charging_disabled = (value >> 2) & 1;
+    }
+
+    if (out_charging_status) {
+        *out_charging_status = (value >> 3) & 3;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_set_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool enable) {
+    uint8_t value = 0;
+    if (enable) {
+        value |= (1 << 0);
+    }
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
+                                               (uint8_t[]){
+                                                   TANMATSU_COPROCESSOR_I2C_REG_PMIC_OTG_CONTROL,
+                                                   value,
+                                               },
+                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
     return ESP_OK;
 }

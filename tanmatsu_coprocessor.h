@@ -1,8 +1,6 @@
-/*
- * SPDX-FileCopyrightText: 2024 Nicolai Electronics
- *
- * SPDX-License-Identifier: MIT
- */
+// Tanmatsu coprocessor interface component
+// SPDX-FileCopyrightText: 2024 Nicolai Electronics
+// SPDX-License-Identifier: MIT
 
 #pragma once
 
@@ -167,6 +165,13 @@ typedef struct {
     bool ntc_boost;
 } tanmatsu_coprocessor_pmic_faults_t;
 
+typedef enum {
+    TANMATSU_CHARGE_STATUS_NOT_CHARGING = 0,
+    TANMATSU_CHARGE_STATUS_PRE_CHARGING = 1,
+    TANMATSU_CHARGE_STATUS_FAST_CHARGING = 2,
+    TANMATSU_CHARGE_STATUS_CHARGE_TERMINATION_DONE = 3,
+} tanmatsu_coprocessor_charger_status_t;
+
 // Functions
 
 esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* configuration,
@@ -229,3 +234,11 @@ esp_err_t tanmatsu_coprocessor_get_pmic_vsys(tanmatsu_coprocessor_handle_t handl
 esp_err_t tanmatsu_coprocessor_get_pmic_ts(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ts);
 esp_err_t tanmatsu_coprocessor_get_pmic_vbus(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbus);
 esp_err_t tanmatsu_coprocessor_get_pmic_ichgr(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ichgr);
+esp_err_t tanmatsu_coprocessor_set_pmic_charging_control(tanmatsu_coprocessor_handle_t handle, bool disable,
+                                                         uint8_t speed);
+esp_err_t tanmatsu_coprocessor_get_pmic_charging_control(tanmatsu_coprocessor_handle_t handle, bool* out_disable,
+                                                         uint8_t* out_speed);
+esp_err_t tanmatsu_coprocessor_get_pmic_charging_status(tanmatsu_coprocessor_handle_t handle,
+                                                        bool* out_battery_attached, bool* out_usb_attached,
+                                                        bool* out_charging_disabled, uint8_t* out_charging_status);
+esp_err_t tanmatsu_coprocessor_set_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool enable);
