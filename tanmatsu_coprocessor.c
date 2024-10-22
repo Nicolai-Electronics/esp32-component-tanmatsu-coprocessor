@@ -66,27 +66,45 @@ static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
     tanmatsu_coprocessor_pmic_faults_t prev_faults = {0};
     tanmatsu_coprocessor_pmic_faults_t faults = {0};
 
+    bool failed = false;
+
     while (true) {
         // Wait for interrupt
+        if (failed) {
+            printf("Previous interrupt coprocessor read failed!\r\n");
+        }
         xSemaphoreTake(handle->interrupt_semaphore, pdMS_TO_TICKS(1000));
+        failed = false;
 
         // Read interrupt reason
         bool keyboard, input, pmic;
-        ESP_ERROR_CHECK(tanmatsu_coprocessor_get_interrupt(handle, &keyboard, &input, &pmic));
+        if (tanmatsu_coprocessor_get_interrupt(handle, &keyboard, &input, &pmic) != ESP_OK) {
+            failed = true;
+            continue;
+        }
 
         if (keyboard) {
             // Read keyboard state
-            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_keyboard_keys(handle, &keys));
+            if (tanmatsu_coprocessor_get_keyboard_keys(handle, &keys) != ESP_OK) {
+                failed = true;
+                continue;
+            }
         }
 
         if (input) {
             // Read input state
-            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_inputs(handle, &inputs));
+            if (tanmatsu_coprocessor_get_inputs(handle, &inputs) != ESP_OK) {
+                failed = true;
+                continue;
+            }
         }
 
         if (pmic) {
             // Read PMIC state
-            ESP_ERROR_CHECK(tanmatsu_coprocessor_get_pmic_faults(handle, &faults));
+            if (tanmatsu_coprocessor_get_pmic_faults(handle, &faults) != ESP_OK) {
+                failed = true;
+                continue;
+            }
         }
 
         if (memcmp(&prev_keys, &keys, sizeof(tanmatsu_coprocessor_keys_t))) {
@@ -108,6 +126,7 @@ static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
 
         memcpy(&prev_keys, &keys, sizeof(tanmatsu_coprocessor_keys_t));
         memcpy(&prev_inputs, &inputs, sizeof(tanmatsu_coprocessor_inputs_t));
+        memcpy(&prev_faults, &faults, sizeof(tanmatsu_coprocessor_pmic_faults_t));
     }
 }
 
@@ -123,6 +142,8 @@ static void claim_i2c_bus(tanmatsu_coprocessor_handle_t handle) {
     // Claim I2C bus
     if (handle->configuration.concurrency_semaphore != NULL) {
         xSemaphoreTake(handle->configuration.concurrency_semaphore, portMAX_DELAY);
+    } else {
+        ESP_LOGW(TAG, "No concurrency semaphore");
     }
 }
 
@@ -350,6 +371,9 @@ esp_err_t tanmatsu_coprocessor_set_radio_state(tanmatsu_coprocessor_handle_t han
                                                },
                                                2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
                         TAG, "Communication fault");
+    claim_i2c_bus(handle);
+    vTaskDelay(pdMS_TO_TICKS(100));  // Wait a bit (workaround for crash)
+    release_i2c_bus(handle);
     return ESP_OK;
 }
 
@@ -565,6 +589,7 @@ esp_err_t tanmatsu_coprocessor_set_pmic_charging_control(tanmatsu_coprocessor_ha
         value |= (1 << 0);
     }
     value |= ((speed & 3) << 1);
+    printf("CURRENT: %u\r\n", speed);
     ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
                                                (uint8_t[]){
                                                    TANMATSU_COPROCESSOR_I2C_REG_PMIC_CHARGING_CONTROL,
