@@ -129,30 +129,6 @@ typedef struct {
     };
 } tanmatsu_coprocessor_outputs_t;
 
-typedef struct tanmatsu_coprocessor tanmatsu_coprocessor_t;
-typedef tanmatsu_coprocessor_t* tanmatsu_coprocessor_handle_t;
-
-typedef void (*tanmatsu_coprocessor_keyboard_cb)(tanmatsu_coprocessor_handle_t, tanmatsu_coprocessor_keys_t*,
-                                                 tanmatsu_coprocessor_keys_t*);
-typedef void (*tanmatsu_coprocessor_input_cb)(tanmatsu_coprocessor_handle_t, tanmatsu_coprocessor_inputs_t*,
-                                              tanmatsu_coprocessor_inputs_t*);
-
-typedef struct {
-    gpio_num_t int_io_num;                                /// GPIO to which the interrupt line is connected
-    i2c_master_bus_handle_t i2c_bus;                      /// Handle of the I2C bus of the coprocessor
-    uint16_t i2c_address;                                 /// I2C address of the coprocessor (7-bit)
-    SemaphoreHandle_t concurrency_semaphore;              /// Semaphore for making I2C bus operation thread safe
-    tanmatsu_coprocessor_keyboard_cb on_keyboard_change;  /// Function called when the state of a keyboard key changes
-    tanmatsu_coprocessor_input_cb on_input_change;        /// Function called when the state of an input changes
-
-} tanmatsu_coprocessor_config_t;
-
-typedef enum {
-    tanmatsu_coprocessor_radio_state_disabled = 0x00,
-    tanmatsu_coprocessor_radio_state_enabled_bootloader = 0x01,
-    tanmatsu_coprocessor_radio_state_enabled_application = 0x03,
-} tanmatsu_coprocessor_radio_state_t;
-
 typedef struct {
     bool watchdog;
     bool boost;
@@ -164,6 +140,32 @@ typedef struct {
     bool ntc_hot;
     bool ntc_boost;
 } tanmatsu_coprocessor_pmic_faults_t;
+
+typedef struct tanmatsu_coprocessor tanmatsu_coprocessor_t;
+typedef tanmatsu_coprocessor_t* tanmatsu_coprocessor_handle_t;
+
+typedef void (*tanmatsu_coprocessor_keyboard_cb)(tanmatsu_coprocessor_handle_t, tanmatsu_coprocessor_keys_t*,
+                                                 tanmatsu_coprocessor_keys_t*);
+typedef void (*tanmatsu_coprocessor_input_cb)(tanmatsu_coprocessor_handle_t, tanmatsu_coprocessor_inputs_t*,
+                                              tanmatsu_coprocessor_inputs_t*);
+typedef void (*tanmatsu_coprocessor_faults_cb)(tanmatsu_coprocessor_handle_t, tanmatsu_coprocessor_pmic_faults_t*,
+                                               tanmatsu_coprocessor_pmic_faults_t*);
+
+typedef struct {
+    gpio_num_t int_io_num;                                /// GPIO to which the interrupt line is connected
+    i2c_master_bus_handle_t i2c_bus;                      /// Handle of the I2C bus of the coprocessor
+    uint16_t i2c_address;                                 /// I2C address of the coprocessor (7-bit)
+    SemaphoreHandle_t concurrency_semaphore;              /// Semaphore for making I2C bus operation thread safe
+    tanmatsu_coprocessor_keyboard_cb on_keyboard_change;  /// Function called when the state of a keyboard key changes
+    tanmatsu_coprocessor_input_cb on_input_change;        /// Function called when the state of an input changes
+    tanmatsu_coprocessor_faults_cb on_faults_change;      /// Function called when PMIC fault status changes
+} tanmatsu_coprocessor_config_t;
+
+typedef enum {
+    tanmatsu_coprocessor_radio_state_disabled = 0x00,
+    tanmatsu_coprocessor_radio_state_enabled_bootloader = 0x01,
+    tanmatsu_coprocessor_radio_state_enabled_application = 0x03,
+} tanmatsu_coprocessor_radio_state_t;
 
 typedef enum {
     TANMATSU_CHARGE_STATUS_NOT_CHARGING = 0,

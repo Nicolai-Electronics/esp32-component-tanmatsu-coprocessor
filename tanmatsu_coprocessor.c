@@ -120,8 +120,9 @@ static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
         }
 
         if (memcmp(&prev_faults, &faults, sizeof(tanmatsu_coprocessor_pmic_faults_t))) {
-            // tbd
-            printf("PMIC faults changed\r\n");
+            if (handle->configuration.on_faults_change) {
+                handle->configuration.on_faults_change(handle, &prev_faults, &faults);
+            }
         }
 
         memcpy(&prev_keys, &keys, sizeof(tanmatsu_coprocessor_keys_t));
