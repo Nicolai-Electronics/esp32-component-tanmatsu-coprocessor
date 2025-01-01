@@ -10,7 +10,6 @@
 #include "driver/i2c_master.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
 
 // Defines
 
@@ -220,6 +219,11 @@ esp_err_t tanmatsu_coprocessor_radio_enable_bootloader(tanmatsu_coprocessor_hand
 esp_err_t tanmatsu_coprocessor_get_real_time(tanmatsu_coprocessor_handle_t handle, uint32_t* out_value);
 esp_err_t tanmatsu_coprocessor_set_real_time(tanmatsu_coprocessor_handle_t handle, uint32_t value);
 
+esp_err_t tanmatsu_coprocessor_get_alarm_time(tanmatsu_coprocessor_handle_t handle, uint32_t* out_value);
+esp_err_t tanmatsu_coprocessor_set_alarm_time(tanmatsu_coprocessor_handle_t handle, uint32_t value);
+
+esp_err_t tanmatsu_coprocessor_power_off(tanmatsu_coprocessor_handle_t handle, bool enable_alarm_wakeup);
+
 esp_err_t tanmatsu_coprocessor_get_backup_registers(tanmatsu_coprocessor_handle_t handle, uint8_t reg,
                                                     uint8_t* out_value, uint8_t length);
 esp_err_t tanmatsu_coprocessor_set_backup_registers(tanmatsu_coprocessor_handle_t handle, uint8_t reg,
@@ -244,3 +248,4 @@ esp_err_t tanmatsu_coprocessor_get_pmic_charging_status(tanmatsu_coprocessor_han
                                                         bool* out_battery_attached, bool* out_usb_attached,
                                                         bool* out_charging_disabled, uint8_t* out_charging_status);
 esp_err_t tanmatsu_coprocessor_set_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool enable);
+esp_err_t tanmatsu_coprocessor_set_led_data(tanmatsu_coprocessor_handle_t handle, uint8_t* data, uint8_t length);

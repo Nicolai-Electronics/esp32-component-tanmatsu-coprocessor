@@ -1,6 +1,6 @@
 idf_component_register(
     SRCS
-        "tanmatsu_coprocessor"
+        "tanmatsu_coprocessor.c"
     INCLUDE_DIRS
         "."
     REQUIRES
