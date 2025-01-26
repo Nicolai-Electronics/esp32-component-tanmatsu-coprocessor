@@ -161,9 +161,9 @@ typedef struct {
 } tanmatsu_coprocessor_config_t;
 
 typedef enum {
-    tanmatsu_coprocessor_radio_state_disabled = 0x00,
-    tanmatsu_coprocessor_radio_state_enabled_bootloader = 0x01,
-    tanmatsu_coprocessor_radio_state_enabled_application = 0x03,
+    tanmatsu_coprocessor_radio_state_disabled = 0,
+    tanmatsu_coprocessor_radio_state_enabled_bootloader = 1,
+    tanmatsu_coprocessor_radio_state_enabled_application = 2,
 } tanmatsu_coprocessor_radio_state_t;
 
 typedef enum {
