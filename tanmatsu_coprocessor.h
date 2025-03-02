@@ -247,5 +247,6 @@ esp_err_t tanmatsu_coprocessor_get_pmic_charging_control(tanmatsu_coprocessor_ha
 esp_err_t tanmatsu_coprocessor_get_pmic_charging_status(tanmatsu_coprocessor_handle_t handle,
                                                         bool* out_battery_attached, bool* out_usb_attached,
                                                         bool* out_charging_disabled, uint8_t* out_charging_status);
+esp_err_t tanmatsu_coprocessor_get_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool* out_enable);
 esp_err_t tanmatsu_coprocessor_set_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool enable);
 esp_err_t tanmatsu_coprocessor_set_led_data(tanmatsu_coprocessor_handle_t handle, uint8_t* data, uint8_t length);

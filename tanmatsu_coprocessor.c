@@ -711,6 +711,18 @@ esp_err_t tanmatsu_coprocessor_get_pmic_charging_status(tanmatsu_coprocessor_han
     return ESP_OK;
 }
 
+esp_err_t tanmatsu_coprocessor_get_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool* out_enable) {
+    uint8_t value;
+    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
+                                                       (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_PMIC_OTG_CONTROL}, 1,
+                                                       &value, 1, TANMATSU_COPROCESSOR_TIMEOUT_MS),
+                        TAG, "Communication fault");
+    if (out_enable) {
+        *out_enable = (value >> 0) & 1;
+    }
+    return ESP_OK;
+}
+
 esp_err_t tanmatsu_coprocessor_set_pmic_otg_control(tanmatsu_coprocessor_handle_t handle, bool enable) {
     uint8_t value = 0;
     if (enable) {
