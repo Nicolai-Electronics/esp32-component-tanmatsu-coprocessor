@@ -71,10 +71,10 @@
 #define TANMATSU_COPROCESSOR_I2C_REG_LED5_B                144
 
 typedef struct tanmatsu_coprocessor {
-    i2c_master_dev_handle_t dev_handle;           /// I2C device handle
+    i2c_master_dev_handle_t       dev_handle;     /// I2C device handle
     tanmatsu_coprocessor_config_t configuration;  /// Copy of the configuration struct provided during initialization
-    TaskHandle_t interrupt_handler_thread;        /// Task handle for the interrupt handling thread
-    SemaphoreHandle_t interrupt_semaphore;        /// Semaphore for triggering the interrupt thread
+    TaskHandle_t                  interrupt_handler_thread;  /// Task handle for the interrupt handling thread
+    SemaphoreHandle_t             interrupt_semaphore;       /// Semaphore for triggering the interrupt thread
 } tanmatsu_coprocessor_t;
 
 static char const TAG[] = "Tanmatsu coprocessor";
@@ -82,12 +82,12 @@ static char const TAG[] = "Tanmatsu coprocessor";
 static void tanmatsu_coprocessor_interrupt_thread_entry(void* pvParameters) {
     tanmatsu_coprocessor_handle_t handle = (tanmatsu_coprocessor_handle_t)pvParameters;
 
-    tanmatsu_coprocessor_keys_t prev_keys = {0};
-    tanmatsu_coprocessor_keys_t keys = {0};
-    tanmatsu_coprocessor_inputs_t prev_inputs = {0};
-    tanmatsu_coprocessor_inputs_t inputs = {0};
+    tanmatsu_coprocessor_keys_t        prev_keys   = {0};
+    tanmatsu_coprocessor_keys_t        keys        = {0};
+    tanmatsu_coprocessor_inputs_t      prev_inputs = {0};
+    tanmatsu_coprocessor_inputs_t      inputs      = {0};
     tanmatsu_coprocessor_pmic_faults_t prev_faults = {0};
-    tanmatsu_coprocessor_pmic_faults_t faults = {0};
+    tanmatsu_coprocessor_pmic_faults_t faults      = {0};
 
     bool failed = false;
 
@@ -196,7 +196,7 @@ static esp_err_t ts_i2c_master_transmit(tanmatsu_coprocessor_handle_t handle, i2
 }
 
 esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* configuration,
-                                          tanmatsu_coprocessor_handle_t* out_handle) {
+                                          tanmatsu_coprocessor_handle_t*       out_handle) {
     ESP_RETURN_ON_FALSE(configuration, ESP_ERR_INVALID_ARG, TAG, "invalid argument: configuration");
     ESP_RETURN_ON_FALSE(out_handle, ESP_ERR_INVALID_ARG, TAG, "invalid argument: handle");
 
@@ -213,8 +213,8 @@ esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* c
 
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = configuration->i2c_address,
-        .scl_speed_hz = 400000,
+        .device_address  = configuration->i2c_address,
+        .scl_speed_hz    = 400000,
     };
 
     ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(configuration->i2c_bus, &dev_cfg, &handle->dev_handle), TAG,
@@ -229,10 +229,10 @@ esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* c
 
         gpio_config_t int_pin_cfg = {
             .pin_bit_mask = BIT64(configuration->int_io_num),
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = false,
+            .mode         = GPIO_MODE_INPUT,
+            .pull_up_en   = false,
             .pull_down_en = false,
-            .intr_type = GPIO_INTR_NEGEDGE,
+            .intr_type    = GPIO_INTR_NEGEDGE,
         };
         ESP_RETURN_ON_ERROR(gpio_config(&int_pin_cfg), TAG, "Failed to configure interrupt GPIO");
         ESP_RETURN_ON_ERROR(
@@ -245,7 +245,7 @@ esp_err_t tanmatsu_coprocessor_initialize(const tanmatsu_coprocessor_config_t* c
 }
 
 esp_err_t tanmatsu_coprocessor_get_firmware_version(tanmatsu_coprocessor_handle_t handle,
-                                                    uint16_t* out_firmware_version) {
+                                                    uint16_t*                     out_firmware_version) {
     uint8_t buffer[2];
     ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(handle, handle->dev_handle,
                                                        (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_FW_VERSION_0}, 1,
@@ -256,7 +256,7 @@ esp_err_t tanmatsu_coprocessor_get_firmware_version(tanmatsu_coprocessor_handle_
 }
 
 esp_err_t tanmatsu_coprocessor_get_keyboard_keys(tanmatsu_coprocessor_handle_t handle,
-                                                 tanmatsu_coprocessor_keys_t* out_keys) {
+                                                 tanmatsu_coprocessor_keys_t*  out_keys) {
     ESP_RETURN_ON_ERROR(ts_i2c_master_transmit_receive(
                             handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_KEYBOARD_0}, 1,
                             (uint8_t*)out_keys, sizeof(tanmatsu_coprocessor_keys_t), TANMATSU_COPROCESSOR_TIMEOUT_MS),
@@ -321,7 +321,7 @@ esp_err_t tanmatsu_coprocessor_get_interrupt(tanmatsu_coprocessor_handle_t handl
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_get_inputs(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_get_inputs(tanmatsu_coprocessor_handle_t  handle,
                                           tanmatsu_coprocessor_inputs_t* out_inputs) {
     ESP_RETURN_ON_ERROR(
         ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_INPUT}, 1,
@@ -331,7 +331,7 @@ esp_err_t tanmatsu_coprocessor_get_inputs(tanmatsu_coprocessor_handle_t handle,
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_get_outputs(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_get_outputs(tanmatsu_coprocessor_handle_t   handle,
                                            tanmatsu_coprocessor_outputs_t* out_outputs) {
     ESP_RETURN_ON_ERROR(
         ts_i2c_master_transmit_receive(handle, handle->dev_handle, (uint8_t[]){TANMATSU_COPROCESSOR_I2C_REG_OUTPUT}, 1,
@@ -341,7 +341,7 @@ esp_err_t tanmatsu_coprocessor_get_outputs(tanmatsu_coprocessor_handle_t handle,
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_set_outputs(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_set_outputs(tanmatsu_coprocessor_handle_t   handle,
                                            tanmatsu_coprocessor_outputs_t* outputs) {
     ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
                                                (uint8_t[]){
@@ -379,7 +379,7 @@ esp_err_t tanmatsu_coprocessor_set_camera_gpio0(tanmatsu_coprocessor_handle_t ha
     return tanmatsu_coprocessor_set_outputs(handle, &outputs);
 }
 
-esp_err_t tanmatsu_coprocessor_get_radio_state(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_get_radio_state(tanmatsu_coprocessor_handle_t       handle,
                                                tanmatsu_coprocessor_radio_state_t* out_state) {
     ESP_RETURN_ON_ERROR(
         ts_i2c_master_transmit_receive(handle, handle->dev_handle,
@@ -389,7 +389,7 @@ esp_err_t tanmatsu_coprocessor_get_radio_state(tanmatsu_coprocessor_handle_t han
     return ESP_OK;
 }
 
-esp_err_t tanmatsu_coprocessor_set_radio_state(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_set_radio_state(tanmatsu_coprocessor_handle_t      handle,
                                                tanmatsu_coprocessor_radio_state_t state) {
     ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
                                                (uint8_t[]){
@@ -525,16 +525,16 @@ typedef struct {
     union {
         uint8_t raw;
         struct {
-            uint8_t ntc_fault : 3;       // Temperature sensor fault
-            uint8_t bat_fault : 1;       // Battery over voltage fault
-            uint8_t chrg_fault : 2;      // Charge fault
-            uint8_t boost_fault : 1;     // Boost mode fault
+            uint8_t ntc_fault      : 3;  // Temperature sensor fault
+            uint8_t bat_fault      : 1;  // Battery over voltage fault
+            uint8_t chrg_fault     : 2;  // Charge fault
+            uint8_t boost_fault    : 1;  // Boost mode fault
             uint8_t watchdog_fault : 1;  // Watchdog fault
         };
     };
 } bq25895_reg0C_t;
 
-esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t handle,
+esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t       handle,
                                                tanmatsu_coprocessor_pmic_faults_t* out_faults) {
     bq25895_reg0C_t value;
     ESP_RETURN_ON_ERROR(
@@ -543,15 +543,15 @@ esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t han
         TAG, "Communication fault");
 
     if (out_faults) {
-        out_faults->watchdog = value.watchdog_fault;
-        out_faults->boost = value.boost_fault;
-        out_faults->chrg_input = value.chrg_fault == 1;
+        out_faults->watchdog     = value.watchdog_fault;
+        out_faults->boost        = value.boost_fault;
+        out_faults->chrg_input   = value.chrg_fault == 1;
         out_faults->chrg_thermal = value.chrg_fault == 2;
-        out_faults->chrg_safety = value.chrg_fault == 3;
-        out_faults->batt_ovp = value.bat_fault;
-        out_faults->ntc_cold = (value.ntc_fault & 3) == 1;
-        out_faults->ntc_hot = (value.ntc_fault & 3) == 2;
-        out_faults->ntc_boost = (value.ntc_fault >> 2) & 1;
+        out_faults->chrg_safety  = value.chrg_fault == 3;
+        out_faults->batt_ovp     = value.bat_fault;
+        out_faults->ntc_cold     = (value.ntc_fault & 3) == 1;
+        out_faults->ntc_hot      = (value.ntc_fault & 3) == 2;
+        out_faults->ntc_boost    = (value.ntc_fault >> 2) & 1;
     }
 
     return ESP_OK;
