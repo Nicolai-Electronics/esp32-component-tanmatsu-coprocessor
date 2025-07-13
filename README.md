@@ -1,6 +1,6 @@
 # Tanmatsu coprocessor component
 
-[![Component Registry](https://components.espressif.com/components/nicolaielectronics/tanmatsu-coprocessor/badge.svg)](https://components.espressif.com/components/nicolaielectronics/esp32-component-tanmatsu-coprocessor)
+[![Component Registry](https://components.espressif.com/components/nicolaielectronics/tanmatsu_coprocessor/badge.svg)](https://components.espressif.com/components/nicolaielectronics/tanmatsu_coprocessor)
 
 This component implements a driver for the coprocessor on the Tanmatsu and WHY2025 badge.
 
