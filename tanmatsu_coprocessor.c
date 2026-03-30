@@ -387,6 +387,20 @@ esp_err_t tanmatsu_coprocessor_set_amplifier_enable(tanmatsu_coprocessor_handle_
     return tanmatsu_coprocessor_set_outputs(handle, &outputs);
 }
 
+esp_err_t tanmatsu_coprocessor_get_amplifier_force(tanmatsu_coprocessor_handle_t handle, bool* out_force) {
+    tanmatsu_coprocessor_outputs_t outputs;
+    ESP_RETURN_ON_ERROR(tanmatsu_coprocessor_get_outputs(handle, &outputs), TAG, "Communication fault");
+    *out_force = outputs.amplifier_force;
+    return ESP_OK;
+}
+
+esp_err_t tanmatsu_coprocessor_set_amplifier_force(tanmatsu_coprocessor_handle_t handle, bool force) {
+    tanmatsu_coprocessor_outputs_t outputs;
+    ESP_RETURN_ON_ERROR(tanmatsu_coprocessor_get_outputs(handle, &outputs), TAG, "Communication fault");
+    outputs.amplifier_force = force;
+    return tanmatsu_coprocessor_set_outputs(handle, &outputs);
+}
+
 esp_err_t tanmatsu_coprocessor_get_camera_gpio0(tanmatsu_coprocessor_handle_t handle, bool* out_enable) {
     tanmatsu_coprocessor_outputs_t outputs;
     ESP_RETURN_ON_ERROR(tanmatsu_coprocessor_get_outputs(handle, &outputs), TAG, "Communication fault");
