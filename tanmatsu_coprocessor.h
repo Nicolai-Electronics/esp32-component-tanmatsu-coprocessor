@@ -244,8 +244,6 @@ esp_err_t tanmatsu_coprocessor_get_pmic_communication_fault(tanmatsu_coprocessor
                                                             bool* out_latch);
 esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t       handle,
                                                tanmatsu_coprocessor_pmic_faults_t* out_faults);
-esp_err_t tanmatsu_coprocessor_set_pmic_adc_control(tanmatsu_coprocessor_handle_t handle, bool trigger,
-                                                    bool continuous);
 esp_err_t tanmatsu_coprocessor_get_pmic_vbat(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vbat);
 esp_err_t tanmatsu_coprocessor_get_pmic_vsys(tanmatsu_coprocessor_handle_t handle, uint16_t* out_vsys);
 esp_err_t tanmatsu_coprocessor_get_pmic_ts(tanmatsu_coprocessor_handle_t handle, uint16_t* out_ts);

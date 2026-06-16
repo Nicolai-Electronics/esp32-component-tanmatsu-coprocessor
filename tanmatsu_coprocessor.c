@@ -32,7 +32,6 @@
 #define TANMATSU_COPROCESSOR_I2C_REG_BACKUP_0              22  // 84 bytes
 #define TANMATSU_COPROCESSOR_I2C_REG_PMIC_COMM_FAULT       106
 #define TANMATSU_COPROCESSOR_I2C_REG_PMIC_FAULT            107
-#define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL      108
 #define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_0       109  // LSB
 #define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VBAT_1       110  // MSB
 #define TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_VSYS_0       111  // LSB
@@ -592,25 +591,6 @@ esp_err_t tanmatsu_coprocessor_get_pmic_faults(tanmatsu_coprocessor_handle_t    
         out_faults->ntc_boost    = (value.ntc_fault >> 2) & 1;
     }
 
-    return ESP_OK;
-}
-
-esp_err_t tanmatsu_coprocessor_set_pmic_adc_control(tanmatsu_coprocessor_handle_t handle, bool trigger,
-                                                    bool continuous) {
-    uint8_t value = 0;
-    if (trigger) {
-        value |= (1 << 0);
-    }
-    if (continuous) {
-        value |= (1 << 1);
-    }
-    ESP_RETURN_ON_ERROR(ts_i2c_master_transmit(handle, handle->dev_handle,
-                                               (uint8_t[]){
-                                                   TANMATSU_COPROCESSOR_I2C_REG_PMIC_ADC_CONTROL,
-                                                   value,
-                                               },
-                                               2, TANMATSU_COPROCESSOR_TIMEOUT_MS),
-                        TAG, "Communication fault");
     return ESP_OK;
 }
 
